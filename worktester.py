@@ -1,6 +1,6 @@
 import datetime
 import numpy as np
-import projectionAtR as prt
+import PlasmaFlowForecast as pff
 from matplotlib import pyplot as plt
 
 def matlabfun():
@@ -16,12 +16,12 @@ def matlabfun():
     fluxesN = 100
     fluxesBins_b = np.logspace(-3, 8, fluxesN+1)
 
-    energy = prt.get_energy_rbsp_mageis()
+    energy = pff.get_energy_rbsp_mageis()
     energyBins_N = np.argwhere(energy>0)
     energyBins_N = np.reshape(energyBins_N,(len(energyBins_N),))
     energyBins_N = np.delete(energyBins_N, np.where(energyBins_N==13))
 
-    fluxMean_log, fluxStd_log, paramBins_b  = prt.fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName, fluxesBins_b, energyBins_N, is_save_figures=True)
+    fluxMean_log, fluxStd_log, paramBins_b  = pff.fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName, fluxesBins_b, energyBins_N, is_save_figures=True)
     paramBins = paramBins_b[:-1] + np.diff(paramBins_b) / 2
 
     # fig = plt.figure(figsize=[6.5,19.5])

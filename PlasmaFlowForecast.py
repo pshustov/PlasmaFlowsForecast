@@ -8,6 +8,7 @@ import hashlib
 import kpindex
 import pyomnidata
 
+
 from matplotlib import pyplot as plt
 from Globals import *
 from PyGeopack.TraceField import TraceField
@@ -424,7 +425,7 @@ def load_binsN(R, date_start, date_end, paramName, paramBins_b, fluxesName, flux
 #     (a0*k+1) * np.log(x/x0) + (-k) * np.log(1 + x/x0) - np.log(gamma(a0*k)*gamma(k - a0*k))/gamma(k))
 
 
-def fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName, fluxesBins_b, energyBins_N, is_save_figures=False):
+def fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName, fluxesBins_b, energyBins_N, is_save_figures=False, is_save_cvs = False):
     """
     Function fits bins by normal gauss, return fluxMean_log and fluxStd_log
 
@@ -459,18 +460,31 @@ def fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName
     logfun = lambda x, x0, k, a0: np.log(fun(x, x0, k, a0))
 
     poptM = np.zeros((len(energyBins_N),len(paramBins_b)-1, 3))
+    energy = get_energy_rbsp_mageis()
 
     if is_save_figures:
         fig = plt.figure(figsize=[6.5,19.5])
-        fig_dirname = database+'figures/step_fit/'
+        fig_dirname = database+'figures\\step_fit\\'
         if not os.path.isdir(fig_dirname):
             os.makedirs(fig_dirname)
-        energy = get_energy_rbsp_mageis()
         paramBinsNames = [('%.0f..%.0f'%(par1,par2)) for par1,par2 in zip(paramBins_b[:-1],paramBins_b[1:])]
         paramBinsNames.append(paramName)
 
+
+    if is_save_cvs:
+        cvsdirname = '.\\cvs\\'
+        if not os.path.isdir(cvsdirname):
+            os.makedirs(cvsdirname)
+        np.savetxt(cvsdirname+'energy.cvs', energy[energyBins_N], fmt='%.8e', delimiter=',')
+        np.savetxt(cvsdirname+'fluxesBins_b.cvs', fluxesBins_b, fmt='%.8e', delimiter=',')
+
+
     for i in range(len(energyBins_N)):
         binsN    = load_binsN(R, date_start, date_end, paramName, paramBins_b, fluxesName, fluxesBins_b, np.array([energyBins_N[i]]))
+        
+        if is_save_cvs:
+            np.savetxt(cvsdirname+('binsN%d.cvs'%(i)), binsN, fmt='%.8e', delimiter=',')
+
         norm     = np.sum(binsN,axis=1)
         norm[np.where(norm<5)] = -1
         binsData = (binsN.T / norm).T
@@ -483,7 +497,7 @@ def fit_fluxes_gauss(R, date_start, date_end, paramName, paramBins_b, fluxesName
                 yData = np.log(binsData[j,:])
                 indsY = np.where(np.logical_and(np.logical_and(~np.isinf(yData), xFluxes>0.05), binsData[j,:]>1000/norm[j]))
                 sigma = 1 / np.sqrt(binsN[j,:])
-                popt, pcov = curve_fit(logfun, xFluxes[indsY], yData[indsY], p0=p0, bounds=bounds, sigma=sigma[indsY])
+                popt, pcov = curve_fit(logfun, xFluxes[indsY], yData[indsY], p0=p0, bounds=bounds)
             else:
                 popt = (0,0)
             poptM[i,j,:] = popt
