@@ -1,1 +1,1 @@
-database = './database/'
+database = '.\\database\\'
