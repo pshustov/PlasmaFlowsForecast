@@ -1,1 +1,1 @@
-database = '.\\database\\'
+database = 'D:\\work_Pavel\\7. PlasmaFlowsForecast\\database\\'

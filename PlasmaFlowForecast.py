@@ -7,13 +7,12 @@ import os
 import hashlib
 import kpindex
 import pyomnidata
+import TraceFieldMy as TFm
 
 
 from matplotlib import pyplot as plt
 from Globals import *
-from PyGeopack.TraceField import TraceField
 from scipy.interpolate import interp1d
-from math import ceil
 from scipy.optimize.minpack import curve_fit
 from scipy.special import gamma
 
@@ -60,39 +59,6 @@ Kp = getKp()
 omni = getOmni()
 
 
-class TraceFieldMy(TraceField):
-    def __init__(self, times = None, positions = None, Model='T96', CoordIn = 'GSM', CoordOut = 'GSM', 
-				alt=100.0, MaxLen=1000, DSMax=1.0,FlattenSingleTraces=True,Verbose=False,OutDtype='float64',**kwargs):
-        if times is not None:
-            TraceField.__init__(self,*positions.T, *times_to_dateUt(times), Model, CoordIn, CoordOut, alt, MaxLen, DSMax,FlattenSingleTraces,Verbose,OutDtype,**kwargs)
-            self.time = times
-            self.pos  = positions
-            self.nstep = self.nstep.astype('int32')
-
-    def append(self, other):
-        if(self.__dict__):
-            attr_names = list(self.__dict__.keys()) 
-            attr_names_nonNParray = list()
-            for attr_name in attr_names:
-                if isinstance(self.__dict__.get(attr_name),np.ndarray):
-                    exec('self.%s = np.concatenate((self.%s, other.%s), axis=0)' % (attr_name, attr_name, attr_name))
-                else:
-                    attr_names_nonNParray.append(attr_name)
-            if(attr_names_nonNParray != list('n')):
-                raise Exception('Unknown class attribute')
-            else:
-                self.n += other.n
-        else:                
-            self.__dict__ = other.__dict__
-
-
-def times_to_dateUt(times):
-        pos_time_DT = [ datetime.datetime.utcfromtimestamp(times[i]) for i in range(len(times))]
-        Date        = np.array([int(pos_time_DT[i].strftime('%Y%m%d')) for i in range(len(times))])
-        ut          = np.array([(pos_time_DT[i] - datetime.datetime(pos_time_DT[i].year,pos_time_DT[i].month,pos_time_DT[i].day)).total_seconds() for i in range(len(times))]) / 3600
-        return Date,ut
-
-
 def dict_conc(A, B):
     if(A):
         attr_names_A = list(A.keys()) 
@@ -113,67 +79,9 @@ def dict_conc(A, B):
     return A
 
 
-def get_time_inds(pos_time, trange = None, t_step = 1, R = None):
-    n_step = int(ceil(t_step.total_seconds()/np.mean(np.diff(pos_time))))
-    inds = np.full(np.size(pos_time), False, dtype=bool)
-    if R is None:
-        inds[::n_step] = True
-    else:
-        R = R / 3
-        if trange is not None:
-            inds = pos_time > pyspedas.time_float(trange[0])
-            i = np.argwhere(pos_time > pyspedas.time_float(trange[0]))[0]
-        else:
-            i = 0
-        while(i < len(inds)):
-            inds[i] = True
-            i += ceil(n_step * R[i])    
-    inds[-1] = True
-
-    if trange is None:
-        return inds
-    else:
-        return (pos_time >= pyspedas.time_float(trange[0])) & (pos_time < pyspedas.time_float(trange[1])) & inds
-
-
 def interp1(x,y,xp):
     f = interp1d(x,y,bounds_error=False,fill_value=np.nan)
     return f(xp)
-
-
-def get_TraceMy(date, pos_time=None, pos_position=None):
-    t_step   = datetime.timedelta(minutes=2)
-
-    dirname = database+'rbsp_magtraces/'
-    if not os.path.isdir(dirname):
-        os.makedirs(dirname)
-
-    filename        = dirname + date.strftime('magtrace%Y-%m-%d.dat')
-    if not os.path.isfile(filename):
-        if (pos_time is None) and (pos_position is None):
-            dateCurrentStr  = date.strftime('%Y-%m-%d/%H:%M:%S')
-            dateNextStr     = (date+datetime.timedelta(days=1)).strftime('%Y-%m-%d/%H:%M:%S')
-            emfisis_vars    = pyspedas.rbsp.emfisis([dateCurrentStr, dateNextStr], probe='a', level='l3', notplot=True, coord='gsm')
-
-            pos_time     = emfisis_vars.get('coordinates').get('x')
-            pos_position = emfisis_vars.get('coordinates').get('y') / 6371.2 
-
-        wherenan = np.where(np.logical_not(np.isnan(pos_position[:,1])))
-        pos_time = pos_time[wherenan]
-        pos_position = pos_position[wherenan,:][0]
-
-        pos_R = np.sqrt(pos_position[:,0]**2 + pos_position[:,1]**2 + pos_position[:,2]**2)
-        inds         = get_time_inds(pos_time, t_step=t_step, R=pos_R)
-        pos_time     = pos_time[inds]
-        pos_position = pos_position[inds,:]
-
-        Trace = TraceFieldMy(pos_time, pos_position,Verbose=True)
-        with open(filename, 'wb') as fileTrace:
-            pickle.dump(Trace, fileTrace,pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(filename, 'rb') as fileTrace:
-            Trace = pickle.load(fileTrace)
-    return Trace
 
 
 def get_coord_intersect(out_time, R, Trace):    
@@ -214,8 +122,8 @@ def get_fluxes_integrated(mageis_vars, X,Y,Z):
     if(np.nanmean(np.abs(position)) > 40):
         position = position / 6371.2
     
-    Bx0,By0,B0z = gp.ModelField(*position.T,*times_to_dateUt(FEDU_t),Model='T96',CoordIn='GSM',CoordOut='GSM')
-    Bx1,By1,Bz1 = gp.ModelField(X,Y,Z,*times_to_dateUt(FEDU_t),Model='T96',CoordIn='GSM',CoordOut='GSM')
+    Bx0,By0,B0z = gp.ModelField(*position.T,*TFm.times_to_dateUt(FEDU_t),Model='T96',CoordIn='GSM',CoordOut='GSM')
+    Bx1,By1,Bz1 = gp.ModelField(X,Y,Z,*TFm.times_to_dateUt(FEDU_t),Model='T96',CoordIn='GSM',CoordOut='GSM')
     B0 = np.sqrt(Bx0**2 + By0**2 + B0z**2)
     B1 = np.sqrt(Bx1**2 + By1**2 + Bz1**2)
 
@@ -270,7 +178,7 @@ def get_projectionAt_oneDay(date, R):
             pos_position = pos_position / 6371.2
         
 
-        Trace   = get_TraceMy(date,pos_time,pos_position)
+        Trace = TFm.TraceFieldMy(date,pos_time,pos_position,Verbose=True)
         X1,Y1,Z1, X2,Y2,Z2 = get_coord_intersect(out_time, R, Trace)
         
         out_data = {}
