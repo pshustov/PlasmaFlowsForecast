@@ -19,26 +19,29 @@ def times_to_dateUt(times):
 
 
 def get_time_inds(pos_time, trange = None, t_step = 1, R = None):
-    n_step = int(ceil(t_step.total_seconds()/np.mean(np.diff(pos_time))))
-    inds = np.full(np.size(pos_time), False, dtype=bool)
-    if R is None:
-        inds[::n_step] = True
-    else:
-        R = R / 3
-        if trange is not None:
-            inds = pos_time > pyspedas.time_float(trange[0])
-            i = np.argwhere(pos_time > pyspedas.time_float(trange[0]))[0]
+    if(pos_time.size):
+        n_step = int(ceil(t_step.total_seconds()/np.mean(np.diff(pos_time))))
+        inds = np.full(np.size(pos_time), False, dtype=bool)
+        if R is None:
+            inds[::n_step] = True
         else:
-            i = 0
-        while(i < len(inds)):
-            inds[i] = True
-            i += ceil(n_step * R[i])    
-    inds[-1] = True
+            R = R / 3
+            if trange is not None:
+                inds = pos_time > pyspedas.time_float(trange[0])
+                i = np.argwhere(pos_time > pyspedas.time_float(trange[0]))[0]
+            else:
+                i = 0
+            while(i < len(inds)):
+                inds[i] = True
+                i += ceil(n_step * R[i])    
+        inds[-1] = True
 
-    if trange is None:
-        return inds
+        if trange is None:
+            return inds
+        else:
+            return (pos_time >= pyspedas.time_float(trange[0])) & (pos_time < pyspedas.time_float(trange[1])) & inds
     else:
-        return (pos_time >= pyspedas.time_float(trange[0])) & (pos_time < pyspedas.time_float(trange[1])) & inds
+        return np.where(1 > 2)
 
 
 class TraceFieldMy(TraceField):
@@ -65,8 +68,8 @@ class TraceFieldMy(TraceField):
                 dateNextStr     = (date+datetime.timedelta(days=1)).strftime('%Y-%m-%d/%H:%M:%S')
                 emfisis_vars    = pyspedas.rbsp.emfisis([dateCurrentStr, dateNextStr], probe='a', level='l3', notplot=True, coord='gsm')
 
-                times     = emfisis_vars.get('coordinates').get('x')
-                positions = emfisis_vars.get('coordinates').get('y') / 6371.2 
+                times     = np.array(emfisis_vars['coordinates']['x'])
+                positions = np.array(emfisis_vars['coordinates']['y']) / 6371.2 
 
             wherenan    = np.where(np.logical_not(np.isnan(positions[:,1])))
             times       = times[wherenan]
