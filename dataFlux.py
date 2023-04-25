@@ -184,6 +184,7 @@ def get_fluxes_integrated_onR(mageis_vars, pos_coords, coord_onR, inds_notnan):
     alpha = np.linspace(0, 180, 181)
     alpha = alpha[:-1] + np.diff(alpha)/2
 #добавляем нулевой и 180 бин для интерполяции
+#test chnge
     alpha01 = np.concatenate(([0], alpha0, [180]))
     fluxes01 = np.concatenate((fluxes0[:,[0],:], fluxes0, fluxes0[:,[-1],:]), axis=1)
     f = interp1d(alpha01, fluxes01, kind='linear', axis=1)
